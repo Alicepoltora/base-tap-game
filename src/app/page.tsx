@@ -15,8 +15,8 @@ export default function Home() {
   const [score, setScore] = useState(0);
   const [localScore, setLocalScore] = useState(0);
   const [isReady, setIsReady] = useState(false);
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { address, isConnected, isConnecting } = useAccount();
+  const { connect, connectors, isPending: isConnectPending } = useConnect();
   const { sendTransaction, data: hash, isPending, error } = useSendTransaction();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -31,6 +31,14 @@ export default function Home() {
       init();
     }
   }, [isReady]);
+
+  // Auto-connect when connectors are available and not connected
+  useEffect(() => {
+    if (!isConnected && !isConnecting && connectors.length > 0) {
+      const connector = connectors.find((c) => c.id === "farcaster") || connectors[0];
+      connect({ connector });
+    }
+  }, [isConnected, isConnecting, connectors, connect]);
 
   // Handle score increment on confirmed transaction
   useEffect(() => {
@@ -67,16 +75,19 @@ export default function Home() {
           Base Tapper
         </h1>
         <p className="text-slate-400 mb-12 max-w-xs text-lg">
-          Tap the logo, make a transaction, earn points on Base Mainnet.
+          {isConnecting || isConnectPending ? "Connecting your wallet..." : "Redirecting to secure connection..."}
         </p>
 
-        <button
-          onClick={() => connect({ connector: connectors[0] })}
-          className="flex items-center gap-3 bg-[#0052FF] hover:bg-[#0042CC] text-white px-8 py-4 rounded-2xl font-bold text-xl transition-all active:scale-95 shadow-[0_0_30px_rgba(0,82,255,0.4)]"
-        >
-          <Wallet className="w-6 h-6" />
-          Connect to Play
-        </button>
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center gap-3 bg-white/5 px-8 py-4 rounded-2xl font-bold text-xl border border-white/10 opacity-70">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+            <span>{isConnecting || isConnectPending ? "Authenticating" : "Awaiting Wallet"}</span>
+          </div>
+
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">
+            Base Mini App Environment
+          </p>
+        </div>
       </main>
     );
   }
