@@ -7,13 +7,13 @@
     "frame": {
         "version": "1",
         "name": "Base Tap Game",
-        "image": "https://base-tap-game.vercel.app/og-image.png",
+        "image": "https://base-tap-game-tawny.vercel.app/og-image.png",
         "button": {
             "title": "Play Now",
             "action": {
                 "type": "launch_app",
                 "name": "Base Tap Game",
-                "url": "https://base-tap-game.vercel.app/"
+                "url": "https://base-tap-game-tawny.vercel.app/"
             }
         }
     }

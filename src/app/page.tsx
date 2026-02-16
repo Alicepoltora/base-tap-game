@@ -6,12 +6,14 @@ import { parseEther } from "viem";
 import { motion, AnimatePresence } from "framer-motion";
 import { base } from "wagmi/chains";
 import sdk from "@farcaster/miniapp-sdk";
-import { Trophy, Coins, Zap, Loader2, Wallet } from "lucide-react";
+import { Trophy, Coins, Zap, Loader2, Wallet, Share2 } from "lucide-react";
 import { useConnect } from "wagmi";
+
+const WALLETCONNECT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
 export default function Home() {
   const [score, setScore] = useState(0);
-  const [localScore, setLocalScore] = useState(0); // Score that updates immediately
+  const [localScore, setLocalScore] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
@@ -189,7 +191,7 @@ export default function Home() {
       </div>
 
       {/* Footer / Stats */}
-      <div className="relative w-full grid grid-cols-2 gap-4 pb-10 z-10">
+      <div className="relative w-full grid grid-cols-2 gap-4 pb-4 z-10">
         <div className="bg-white/5 border border-white/5 p-4 rounded-[2rem] flex flex-col items-center gap-1 backdrop-blur-md">
           <Coins className="w-4 h-4 text-blue-400" />
           <span className="text-xl font-black">1 WEI</span>
@@ -201,6 +203,17 @@ export default function Home() {
           <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Base Network</span>
         </div>
       </div>
+
+      <button
+        onClick={() => {
+          const text = `I've earned ${score} points on Base Tapper! Can you beat me? 🔵🚀`;
+          sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`);
+        }}
+        className="w-full mb-8 bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl flex items-center justify-center gap-3 transition-colors active:scale-95 z-10"
+      >
+        <Share2 className="w-5 h-5 text-blue-400" />
+        <span className="font-bold">Share Score</span>
+      </button>
 
       {/* Error Toast */}
       {error && (
