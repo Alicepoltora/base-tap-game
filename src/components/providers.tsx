@@ -7,8 +7,6 @@ import { base } from "wagmi/chains";
 import { farcasterFrame } from "@farcaster/miniapp-wagmi-connector";
 import { coinbaseWallet, injected } from "wagmi/connectors";
 
-import { OnchainKitProvider } from "@coinbase/onchainkit";
-
 export const config = createConfig({
     chains: [base],
     connectors: [
@@ -30,15 +28,7 @@ export function Providers({ children }: { children: ReactNode }) {
     return (
         <WagmiProvider config={config}>
             <QueryClientProvider client={queryClient}>
-                <OnchainKitProvider
-                    apiKey={process.env.NEXT_PUBLIC_CDP_API_KEY}
-                    chain={base}
-                    config={{
-                        paymaster: "https://api.developer.coinbase.com/rpc/v1/base/oSPvkDRNQ29jCAUmVeMEUacXRBsrGSPC",
-                    }}
-                >
-                    {children}
-                </OnchainKitProvider>
+                {children}
             </QueryClientProvider>
         </WagmiProvider>
     );
