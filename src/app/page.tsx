@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,8 +15,10 @@ export default function Home() {
   const [score, setScore] = useState(0);
   const [localScore, setLocalScore] = useState(0);
   const [pendingTaps, setPendingTaps] = useState(0);
-  const [isReady, setIsReady] = useState(false);
   const [animations, setAnimations] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [isReady, setIsReady] = useState(false);
+  const tapBuffer = useRef(0);
+  const isSyncing = useRef(false);
 
   const { address, status, isConnected, isConnecting } = useAccount();
   const { connect, connectors, isPending: isConnectPending } = useConnect();
@@ -50,21 +52,35 @@ export default function Home() {
     }
   }, [status, isConnecting, isConnectPending, connectors, connect]);
 
-  // Debounced Syncing Logic
+  // Robust Syncing Logic: Check every 2s
   useEffect(() => {
-    if (pendingTaps === 0) return;
+    const interval = setInterval(() => {
+      if (tapBuffer.current > 0 && isConnected && address && !isPending && !isConfirming && !isSyncing.current) {
+        const amountToSync = tapBuffer.current;
+        isSyncing.current = true;
 
-    const timeout = setTimeout(() => {
-      sendTransaction({
-        to: address,
-        value: parseEther((pendingTaps * 0.000000000000000001).toFixed(18)),
-        chainId: base.id,
-      });
-      setPendingTaps(0);
-    }, 1500); // Wait 1.5s after last tap to sync
+        sendTransaction({
+          to: address,
+          value: parseEther((amountToSync * 0.000000000000000001).toFixed(18)),
+          chainId: base.id,
+        }, {
+          onSettled: () => {
+            isSyncing.current = false;
+          },
+          onSuccess: () => {
+            tapBuffer.current -= amountToSync;
+            setPendingTaps(tapBuffer.current);
+          },
+          onError: () => {
+            // Keep taps in buffer to retry
+            isSyncing.current = false;
+          }
+        });
+      }
+    }, 2000);
 
-    return () => clearTimeout(timeout);
-  }, [pendingTaps, address, sendTransaction]);
+    return () => clearInterval(interval);
+  }, [isConnected, address, isPending, isConfirming, sendTransaction]);
 
   // Load saved score on connect
   useEffect(() => {
@@ -95,20 +111,23 @@ export default function Home() {
   const handleTap = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isConnected) return;
 
+    // Prevent zoom/scroll/double-tap ghosting
+    if (e.cancelable) e.preventDefault();
+
     // Visual feedback
     const x = 'clientX' in e ? e.clientX : e.touches[0].clientX;
     const y = 'clientY' in e ? e.clientY : e.touches[0].clientY;
 
     const id = Date.now();
-    setAnimations(prev => [...prev, { id, x, y }]);
+    setAnimations(prev => [...prev.slice(-20), { id, x, y }]); // Keep last 20 for performance
     setTimeout(() => setAnimations(prev => prev.filter(a => a.id !== id)), 1000);
 
     // Score updates
     setLocalScore(s => s + 1);
-    setPendingTaps(s => s + 1);
+    tapBuffer.current += 1;
+    setPendingTaps(tapBuffer.current);
 
-    // Haptic feedback if available
-    if ('vibrate' in navigator) navigator.vibrate(10);
+    if ('vibrate' in navigator) navigator.vibrate(5);
   }, [isConnected]);
 
   if (!isConnected) {
