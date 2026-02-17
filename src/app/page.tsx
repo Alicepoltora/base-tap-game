@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { base } from "wagmi/chains";
 import sdk from "@farcaster/miniapp-sdk";
 import { Trophy, Coins, Zap, Loader2, Wallet, Share2 } from "lucide-react";
-import { useConnect } from "wagmi";
+import { useConnect, useReconnect } from "wagmi";
 
 const WALLETCONNECT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
@@ -15,8 +15,9 @@ export default function Home() {
   const [score, setScore] = useState(0);
   const [localScore, setLocalScore] = useState(0);
   const [isReady, setIsReady] = useState(false);
-  const { address, isConnected, isConnecting } = useAccount();
+  const { address, status, isConnected, isConnecting } = useAccount();
   const { connect, connectors, isPending: isConnectPending } = useConnect();
+  const { reconnect } = useReconnect();
   const { sendTransaction, data: hash, isPending, error } = useSendTransaction();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -32,17 +33,23 @@ export default function Home() {
     }
   }, [isReady]);
 
+  // Persistent session support
+  useEffect(() => {
+    reconnect();
+  }, [reconnect]);
+
   // Auto-connect when connectors are available and not connected
   useEffect(() => {
-    if (!isConnected && !isConnecting && connectors.length > 0) {
-      // Prioritize Coinbase Wallet for Base App, then Farcaster
-      const connector = connectors.find((c) => c.id === "coinbaseWalletSDK") ||
+    if (status === "disconnected" && !isConnecting && !isConnectPending && connectors.length > 0) {
+      // Prioritize Injected (common in Base App webview) then Coinbase Wallet
+      const connector = connectors.find((c) => c.id === "injected") ||
+        connectors.find((c) => c.id === "coinbaseWalletSDK") ||
         connectors.find((c) => c.id === "coinbaseWallet") ||
         connectors.find((c) => c.id === "farcaster") ||
         connectors[0];
       connect({ connector });
     }
-  }, [isConnected, isConnecting, connectors, connect]);
+  }, [status, isConnecting, isConnectPending, connectors, connect]);
 
   // Handle score increment on confirmed transaction
   useEffect(() => {
