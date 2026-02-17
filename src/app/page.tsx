@@ -8,6 +8,7 @@ import { base } from "wagmi/chains";
 import sdk from "@farcaster/miniapp-sdk";
 import { Trophy, Coins, Zap, Loader2, Wallet, Share2 } from "lucide-react";
 import { useConnect, useReconnect } from "wagmi";
+import { useSendCalls } from "wagmi/experimental";
 
 const WALLETCONNECT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
@@ -18,10 +19,16 @@ export default function Home() {
   const { address, status, isConnected, isConnecting } = useAccount();
   const { connect, connectors, isPending: isConnectPending } = useConnect();
   const { reconnect } = useReconnect();
-  const { sendTransaction, data: hash, isPending, error } = useSendTransaction();
+
+  // Use useSendCalls for sponsored (gasless) transactions
+  const { sendCalls, data: callsId, isPending, error } = useSendCalls();
+
+  // In ERC-5792, sendCalls returns a bundle ID, but wagmi's useSendCalls 
+  // data currently returns a string or object depending on version.
+  const txHash = typeof callsId === 'string' ? callsId : (callsId as any)?.id;
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({ hash });
+    useWaitForTransactionReceipt({ hash: txHash as `0x${string}` });
 
   useEffect(() => {
     const init = async () => {
@@ -63,12 +70,22 @@ export default function Home() {
 
     setLocalScore((s) => s + 1);
 
-    sendTransaction({
-      to: address,
-      value: parseEther("0.000000000000000001"),
-      chainId: base.id,
+    // Using sendCalls with capabilities for sponsoring gas
+    sendCalls({
+      calls: [
+        {
+          to: address as `0x${string}`,
+          value: parseEther("0.000000000000000001"),
+          data: "0x",
+        },
+      ],
+      capabilities: {
+        paymasterService: {
+          url: "https://api.developer.coinbase.com/rpc/v1/base/oSPvkDRNQ29jCAUmVeMEUacXRBsrGSPC",
+        },
+      },
     });
-  }, [isConnected, sendTransaction, address]);
+  }, [isConnected, sendCalls, address]);
 
   if (!isConnected) {
     return (
@@ -119,8 +136,8 @@ export default function Home() {
       {/* Score Section */}
       <div className="relative flex flex-col items-center gap-2 mt-8 z-10">
         <div className="flex items-center gap-4 bg-white/5 border border-white/10 px-8 py-4 rounded-3xl backdrop-blur-xl shadow-2xl relative group">
-          <div className="absolute -top-3 -right-3 bg-blue-600 text-[10px] font-black px-2 py-1 rounded-full border-2 border-slate-950 shadow-lg">
-            LIVE
+          <div className="absolute -top-3 -right-3 bg-green-600 text-[10px] font-black px-2 py-1 rounded-full border-2 border-slate-950 shadow-lg">
+            GASLESS
           </div>
           <Trophy className="w-8 h-8 text-yellow-400" />
           <div className="flex flex-col">
@@ -186,7 +203,7 @@ export default function Home() {
                     <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-white animate-pulse" />
                   </div>
                   <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-400 drop-shadow-md">
-                    {isPending ? "Waiting Sign" : "Mining..."}
+                    {isPending ? "Signing..." : "Mining..."}
                   </span>
                 </div>
               </motion.div>
@@ -196,17 +213,17 @@ export default function Home() {
 
         {/* Floating Tx Link */}
         <AnimatePresence>
-          {hash && (
+          {txHash && (
             <motion.a
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              href={`https://basescan.org/tx/${hash}`}
+              href={`https://basescan.org/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="absolute bottom-10 text-[10px] font-mono text-blue-500/60 hover:text-blue-500 underline decoration-blue-500/20 underline-offset-4 transition-colors"
             >
-              Latest Tx: {hash.slice(0, 10)}...
+              Latest Tx: {String(txHash).slice(0, 10)}...
             </motion.a>
           )}
         </AnimatePresence>
@@ -215,9 +232,9 @@ export default function Home() {
       {/* Footer / Stats */}
       <div className="relative w-full grid grid-cols-2 gap-4 pb-4 z-10">
         <div className="bg-white/5 border border-white/5 p-4 rounded-[2rem] flex flex-col items-center gap-1 backdrop-blur-md">
-          <Coins className="w-4 h-4 text-blue-400" />
-          <span className="text-xl font-black">1 WEI</span>
-          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Transaction</span>
+          <Zap className="w-4 h-4 text-green-400" />
+          <span className="text-xl font-black text-green-400">FREE</span>
+          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Sponsored Gas</span>
         </div>
         <div className="bg-white/5 border border-white/5 p-4 rounded-[2rem] flex flex-col items-center gap-1 backdrop-blur-md">
           <Zap className="w-4 h-4 text-orange-400" />
@@ -228,7 +245,7 @@ export default function Home() {
 
       <button
         onClick={() => {
-          const text = `I've earned ${score} points on Base Tapper! Can you beat me? 🔵🚀`;
+          const text = `I've earned ${score} points on Base Tapper without paying for gas! 🔵🚀`;
           sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`);
         }}
         className="w-full mb-8 bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl flex items-center justify-center gap-3 transition-colors active:scale-95 z-10"
