@@ -5,10 +5,17 @@ import { type ReactNode, useState } from "react";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { base } from "wagmi/chains";
 import { farcasterFrame } from "@farcaster/miniapp-wagmi-connector";
+import { coinbaseWallet } from "wagmi/connectors";
 
 export const config = createConfig({
     chains: [base],
-    connectors: [farcasterFrame()],
+    connectors: [
+        farcasterFrame(),
+        coinbaseWallet({
+            appName: "Base Tap Game",
+            preference: "smartWalletOnly",
+        }),
+    ],
     transports: {
         [base.id]: http(),
     },

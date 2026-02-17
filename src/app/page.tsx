@@ -35,7 +35,11 @@ export default function Home() {
   // Auto-connect when connectors are available and not connected
   useEffect(() => {
     if (!isConnected && !isConnecting && connectors.length > 0) {
-      const connector = connectors.find((c) => c.id === "farcaster") || connectors[0];
+      // Prioritize Coinbase Wallet for Base App, then Farcaster
+      const connector = connectors.find((c) => c.id === "coinbaseWalletSDK") ||
+        connectors.find((c) => c.id === "coinbaseWallet") ||
+        connectors.find((c) => c.id === "farcaster") ||
+        connectors[0];
       connect({ connector });
     }
   }, [isConnected, isConnecting, connectors, connect]);
@@ -75,17 +79,17 @@ export default function Home() {
           Base Tapper
         </h1>
         <p className="text-slate-400 mb-12 max-w-xs text-lg">
-          {isConnecting || isConnectPending ? "Connecting your wallet..." : "Redirecting to secure connection..."}
+          {isConnecting || isConnectPending ? "Подключение к кошельку..." : "Ожидание авторизации..."}
         </p>
 
         <div className="flex flex-col items-center gap-4">
           <div className="flex items-center gap-3 bg-white/5 px-8 py-4 rounded-2xl font-bold text-xl border border-white/10 opacity-70">
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-            <span>{isConnecting || isConnectPending ? "Authenticating" : "Awaiting Wallet"}</span>
+            <span>{isConnecting || isConnectPending ? "Подключение" : "Авторизация"}</span>
           </div>
 
           <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">
-            Base Mini App Environment
+            Base App Environment
           </p>
         </div>
       </main>
